@@ -1,0 +1,203 @@
+
+db.posts.aggregate([
+	{"$unwind":"$comments"}
+
+    {$sort:
+     {
+     "state" : 1,
+     "city" : 1,
+    }
+    }
+])
+
+db.products.aggregate([
+    {$group:
+     {
+         "_id":"$category",
+         "num_products":{$sum:1}
+     }
+    }
+])
+
+db.zips.aggregate([
+    {$group:
+     {
+         "_id":"$state",
+         "population":{$sum:"$pop"}
+     }
+    }
+])
+
+db.zips.aggregate([
+    {$group:
+     {
+         "_id":"$city",
+         "postal_codes":{$addToSet:"$_id"}
+     }
+    }
+])
+
+db.zips.aggregate([
+    {$match:
+     {
+     "pop" : { $gt: 100000 }
+    }
+    }
+])
+
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+db.posts.aggregate([
+	{"$unwind":"$comments"},
+	{$group:
+     {
+         "_id":"$comments.author",
+         "comments":{$sum:1}
+     }
+    },
+	    {$sort:
+     {
+     "comments" : -1,
+    }
+    }
+])
+
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+db.zips.aggregate([
+    {$match:
+	{
+	    $or: 
+		[ 
+     {
+     "state" : "CA" 
+    },
+	     {
+     "state" : "NY"
+    }
+        ]
+	}
+
+    },
+	{$match:
+     {
+     "pop" : { $gt: 25000 }
+    }
+    },
+	{$group:
+     {
+         "_id":{state:"$state", city:"$city"},
+         "pop":{$sum:"$pop"}
+     }
+    },
+	    {$group:
+     {
+         "_id":1,
+         "average_pop":{$avg:"$pop"}
+     }
+    }
+])
+
+
+db.zips.aggregate([
+    {$match:
+	{
+	    $or: 
+		[ 
+     {
+     "state" : "CT" 
+    },
+	     {
+     "state" : "NJ"
+    }
+        ]
+	}
+
+    },
+	{$match:
+     {
+     "pop" : { $gt: 25000 }
+    }
+    },
+	{$group:
+     {
+         "_id":{state:"$state", city:"$city"},
+         "pop":{$sum:"$pop"}
+     }
+    },
+	    {$group:
+     {
+         "_id":1,
+         "average_pop":{$avg:"$pop"}
+     }
+    }
+])
+
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+db.grades.aggregate([
+	{"$unwind":"$scores"},
+	{"$match":{$or:[{"scores.type" : "exam"},{"scores.type" :  "homework"}]}},
+	{$group:
+     {
+         "_id":{class_id:"$class_id", student_id:"$student_id"},
+         "av":{$avg:"$scores.score"}
+     }
+    },
+	{$group:
+     {
+         "_id":"$_id.class_id",
+         "av":{$avg:"$av"}
+     }
+    },
+	{$sort:
+     {
+     "av" : 1
+    }
+    }
+])
+
+db.grades.aggregate([
+	{"$unwind":"$scores"},
+	{"$match":{"class_id" : 2}}
+])
+
+db.grades.aggregate([
+	{"$unwind":"$scores"},
+	{"$match":{"scores.type" :  "exam"}}
+])
+
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+db.zips.aggregate([
+    {$project:{"_id" : 1, first_char: {$substr : ["$city",0,1]}, "pop" : 1}},
+	{"$match":{$or:[{"first_char" : "0"},{"first_char" : "1"},{"first_char" : "2"},{"first_char" : "3"},{"first_char" : "4"},{"first_char" : "5"},{"first_char" : "6"},{"first_char" : "7"},{"first_char" : "8"},{"first_char" : "9"}]}},
+	{$group:
+     {
+         "_id":1,
+         "population":{$sum:"$pop"}
+     }
+    }
+])
+
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+db.messages.aggregate([
+	{"$unwind":"$headers.To"},
+    {$group:
+     {
+         "_id":{_id:"$_id", from:"$headers.From"},
+         "to":{$addToSet:"$headers.To"}
+     }
+	 },
+	{"$unwind":"$to"},
+	    {$group:
+     {
+         "_id":{from:"$_id.from", to:"$to"},
+         "sum":{$sum:1}
+     }
+    },
+		    {$sort:
+     {
+     "sum" : -1,
+    }
+    }
+])
+
