@@ -2,43 +2,70 @@ package io.rr.builderfactory;
 
 import lombok.SneakyThrows;
 
+import javax.annotation.PostConstruct;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 
 public class ObjectFactory {
-    private static ObjectFactory instance = new ObjectFactory();
-    private Config config;
     private List<ObjectConfigurator> objectConfigurators = new ArrayList<>();
-
-    public static ObjectFactory getInstance() {
-        return instance;
-    }
+    private List<ProxyConfigurator> proxyConfigurators = new ArrayList<>();
+    private final ApplicationContext context;
 
     @SneakyThrows
-    private ObjectFactory() {
-        this.config = new JavaConfig("io.rr", new HashMap<Class, Class>() {{
-            put(Cleaner.class, PlaceCleaner.class);
-        }});
+    ObjectFactory(ApplicationContext context) {
+        this.context = context;
 
-        for (Class<? extends ObjectConfigurator> aClass : config.scanner().getSubTypesOf(ObjectConfigurator.class)) {
+//      finds and adds all objectConfigurators
+        for (Class<? extends ObjectConfigurator> aClass : context.config().scanner().getSubTypesOf(ObjectConfigurator.class)) {
             objectConfigurators.add(aClass.getDeclaredConstructor().newInstance());
         }
 
+//      finds and adds all proxyConfigurators
+        for (Class<? extends ProxyConfigurator> aClass : context.config().scanner().getSubTypesOf(ProxyConfigurator.class)) {
+            proxyConfigurators.add(aClass.getDeclaredConstructor().newInstance());
+        }
+
     }
 
     @SneakyThrows
-    public <T> T createObject(Class<T> type) {
+    public <T> T createObject(Class<T> implClass) {
+//      creates objetc
+        T t = create(implClass);
 
-        Class<? extends T> implClass = type;
+//      configure object
+        configure(t);
 
-        if (type.isInterface()) {
-            implClass = config.getImplClass(type);
-        }
+//      run init methods
+        invokeInit(implClass, t);
 
-        T t = implClass.getDeclaredConstructor().newInstance();
-        objectConfigurators.forEach(objectConfigurator -> objectConfigurator.configureObject(t));
+//      returns proxy if needed
+        t = wrapWithProxyIfNeeded(implClass, t);
 
         return t;
+    }
+
+    private <T> T wrapWithProxyIfNeeded(Class<T> implClass, T t) {
+        for (ProxyConfigurator proxyConfigurator : proxyConfigurators) {
+            t = (T) proxyConfigurator.replaceWithProxyIfNeeded(t, implClass);
+        }
+        return t;
+    }
+
+    private <T> void invokeInit(Class<T> implClass, T t) throws IllegalAccessException, InvocationTargetException {
+        for (Method method : implClass.getDeclaredMethods()) {
+            if(method.isAnnotationPresent(PostConstruct.class)){
+                method.invoke(t);
+            }
+        }
+    }
+
+    private <T> void configure(T t) {
+        objectConfigurators.forEach(objectConfigurator -> objectConfigurator.configureObject(t, context));
+    }
+
+    private <T> T create(Class<T> implClass) throws InstantiationException, IllegalAccessException, java.lang.reflect.InvocationTargetException, NoSuchMethodException {
+        return implClass.getDeclaredConstructor().newInstance();
     }
 }

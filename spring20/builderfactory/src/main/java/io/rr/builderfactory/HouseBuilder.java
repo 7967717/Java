@@ -1,5 +1,7 @@
 package io.rr.builderfactory;
 
+@Deprecated
+@Deprecated1
 public class HouseBuilder {
     @InjectByType
     Announcer announcer;
@@ -14,6 +16,6 @@ public class HouseBuilder {
     }
 
     void build(House house) {
-        System.out.println("Building " + house.name());
+        System.out.println("HouseBuilder ".toUpperCase() + "Building " + house.name());
     }
 }
